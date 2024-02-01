@@ -90,7 +90,8 @@ namespace HeatFromPhotovoltaics
                                         }
                                         int hn = DateToHourNumber(month, day, hour);
                                         valuePerHour[hn] = Convert.ToDouble(parts[valueIndex], CultureInfo.InvariantCulture);
-                                        if (valuePerHour[hn] == -999 && hn > 0) valuePerHour[hn] = valuePerHour[hn - 1]; // -999 is an error in data
+                                        if (valuePerHour[hn] == -999 && hn > 24) valuePerHour[hn] = valuePerHour[hn - 24]; 
+                                        // -999 is an error in data, lets use the data of the day before
                                     }
                                 }
                                 catch { }
@@ -105,7 +106,7 @@ namespace HeatFromPhotovoltaics
         {
             Assembly ThisAssembly = Assembly.GetExecutingAssembly();
             string[] dbg = ThisAssembly.GetManifestResourceNames();
-            System.IO.Stream str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovolaics.produkt_tu_stunde_Potsdam.txt");
+            System.IO.Stream str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovoltaics.produkt_tu_stunde_Potsdam.txt");
             if (str != null)
             {
                 using (StreamReader reader = new StreamReader(str))
@@ -114,7 +115,7 @@ namespace HeatFromPhotovoltaics
                     if (dwdData.Any()) Temperature = dwdData.First().Value;
                 }
             }
-            str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovolaics.produkt_st_stunde_Potsdam.txt");
+            str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovoltaics.produkt_st_stunde_Potsdam.txt");
             if (str != null)
             {
                 using (StreamReader reader = new StreamReader(str))
@@ -122,22 +123,22 @@ namespace HeatFromPhotovoltaics
                     Dictionary<int, double[]> dwdData = ReadDwdData(reader, "FG_LBERG");
                     if (dwdData.Any()) GlobalSolarRadiation = dwdData.First().Value;
                 }
-                str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovolaics.produkt_st_stunde_Potsdam.txt");
+                str = ThisAssembly.GetManifestResourceStream("HeatFromPhotovoltaics.produkt_st_stunde_Potsdam.txt");
                 using (StreamReader reader = new StreamReader(str))
                 {
                     Dictionary<int, double[]> dwdData = ReadDwdData(reader, "FD_LBERG");
                     if (dwdData.Any()) DiffuseRadiation = dwdData.First().Value;
                 }
             }
+            // Testcode zur Bestimmung der Skalierung der Strahlung auf kW Leistung:
             double sum = 0.0;
             double maxRad = 0.0;
             double smax = 0;
             for (int i = 0; i < GlobalSolarRadiation.Length; i++)
             {
                 if (GlobalSolarRadiation[i] > maxRad) maxRad = GlobalSolarRadiation[i];
-                double s = Math.Pow((GlobalSolarRadiation[i] / 350), 1.5) * 350 * 0.0038;
+                double s = Math.Pow((GlobalSolarRadiation[i] / 350), 1.2) * 1.05;
                 smax = Math.Max(smax, s);
-                if (s > 1) s = 1;
                 if (GlobalSolarRadiation[i] >= 0) sum += s; // experimtell bestimmter Wert
                 else { }
             }
@@ -156,9 +157,7 @@ namespace HeatFromPhotovoltaics
             int hCop = 0;
             for (int i = 0; i < GlobalSolarRadiation.Length; i++)
             {
-                // double kW = peak * GlobalSolarRadiation[i] * 0.0025; // experimtell bestimmter Wert, aktuelle Leistung für diese Stunde
-                double kW = Math.Pow((GlobalSolarRadiation[i] / 350), 1.5) * 350 * 0.0038; // etwas unterlinear
-                if (kW > 1) kW = 1; // dafür hier gekappt
+                double kW = Math.Pow((GlobalSolarRadiation[i] / 350), 1.2) * 1.05; // gering nichtlieares Verhalten
                 kW *= peak;
 
                 if (kW < heatPumpMin) notUsed += kW;
@@ -184,8 +183,11 @@ namespace HeatFromPhotovoltaics
                 }
                 totalElectric += kW;
                 totalHeat += heat;
-                csvText.AppendLine(i.ToString() + ", " + kW.ToString("F2", CultureInfo.InvariantCulture) + ", " + heat.ToString("F2", CultureInfo.InvariantCulture)
-                    + ", " + cop.ToString("F2", CultureInfo.InvariantCulture) + ", " + Temperature[i].ToString("F1", CultureInfo.InvariantCulture));
+                csvText.AppendLine(i.ToString() + ", " + kW.ToString("F2", CultureInfo.InvariantCulture) + ", " 
+                    + heat.ToString("F2", CultureInfo.InvariantCulture) + ", "
+                    + (kW-heat/cop).ToString("F2", CultureInfo.InvariantCulture) + ", "
+                    + cop.ToString("F2", CultureInfo.InvariantCulture) + ", "
+                    + Temperature[i].ToString("F1", CultureInfo.InvariantCulture));
             }
             result.Text = "elektrische Gesamtleistung: " + (totalElectric / 1000).ToString("F3", CultureInfo.InvariantCulture) + " MWh\r\n"
                 + "erzeugte Wärme: " + (totalHeat / 1000).ToString("F3", CultureInfo.InvariantCulture) + " MWh\r\n"
@@ -202,7 +204,7 @@ namespace HeatFromPhotovoltaics
             {
                 using (StreamWriter outputFile = new StreamWriter(saveFileDialog.FileName))
                 {
-                    outputFile.WriteLine("Stunde, elektrische_Leistung, Wärmeleistung, COP, Umgebungstemperatur");
+                    outputFile.WriteLine("Stunde,elektrische_Leistung,Wärmeleistung,elektrischer_Überschuss,COP,Umgebungstemperatur");
                     outputFile.WriteLine(csvText.ToString());
                 }
             }

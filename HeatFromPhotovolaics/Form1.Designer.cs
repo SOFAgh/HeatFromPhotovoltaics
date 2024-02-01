@@ -175,7 +175,7 @@
             // 
             this.calculate.Location = new System.Drawing.Point(566, 302);
             this.calculate.Name = "calculate";
-            this.calculate.Size = new System.Drawing.Size(88, 23);
+            this.calculate.Size = new System.Drawing.Size(95, 23);
             this.calculate.TabIndex = 2;
             this.calculate.Text = "Berechnen";
             this.calculate.UseVisualStyleBackColor = true;
@@ -185,7 +185,7 @@
             // 
             this.saveFile.Location = new System.Drawing.Point(566, 273);
             this.saveFile.Name = "saveFile";
-            this.saveFile.Size = new System.Drawing.Size(91, 23);
+            this.saveFile.Size = new System.Drawing.Size(95, 23);
             this.saveFile.TabIndex = 3;
             this.saveFile.Text = "Speichern";
             this.saveFile.UseVisualStyleBackColor = true;
